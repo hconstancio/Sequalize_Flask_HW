@@ -14,19 +14,19 @@ from flask import Flask, jsonify
 # Database Setup                                #
 #################################################
 
-engine = create_engine('sqlite:///hawaii.sqlite')
+engine = create_engine('sqlite:///Resources/hawaii.sqlite')
 
 # reflect an existing database into a new model
 Base = automap_base()
 # reflect the tables
 Base.prepare(engine, reflect=True)
 
-conn = engine.connect()
-Base.metadata.create_all(conn)
+# conn = engine.connect()
+# Base.metadata.create_all(conn)
 
-Base.classes.keys()
-measurements= Base.classes.measurements
-stations= Base.classes.stations
+# Base.classes.keys()
+Measurement= Base.classes.measurement
+Station= Base.classes.station
 
 # Create our session (link) from Python to the DB
 session = Session(engine)
@@ -59,7 +59,7 @@ def precipitation():
     # Query all measurements data
     now = dt.datetime.now()
     past_yr = now.replace(year=2017)
-    measurements = session.query(Measurement.date, Measurement.tobs).\
+    measurements = session.query(Measurement.date, Measurement.prcp).\
             filter(Measurement.date > past_yr).all()
 
     # New Dictionary
@@ -67,7 +67,7 @@ def precipitation():
     for measurement in measurements:
         measurement_dict = {}
         measurement_dict["date"] = measurement.date
-        measurement_dict["temp"] = measurement.tobs
+        measurement_dict["precip"] = measurement.prcp
         all_measurements.append(measurement_dict)
 
     return jsonify(all_measurements)
@@ -77,7 +77,7 @@ def precipitation():
 def station():
     """Return a JSON list of stations from the dataset"""
     # Query all stations
-    stations = session.query(measurements.station).all()
+    stations = session.query(Measurement.station).all()
     
     # Convert list of tuples into a normal list
     stations_dict = list(np.ravel(stations))
@@ -97,34 +97,32 @@ def temperature():
     all_temps = []
     for temp in temperatures:
         temp_dict = {}
-        temp_dict["temp"] = measurement.tobs
+        temp_dict["temp"] = temp.tobs
         all_temps.append(temp_dict)
 
     return jsonify(all_temps)
 
 @app.route("/api/v1.0/")
 def min_max():
-    minimum = session.query(func.min(measurements.tobs)).\
-    filter(measurement.date >= start_date).all()
+    now = dt.datetime.now()
+    past_yr = now.replace(year=2017)
+    minimum = session.query(func.min(Measurement.tobs)).\
+    filter(Measurement.date >= past_yr).all()
+    
+    maximum = session.query(func.max(Measurement.tobs)).\
+     filter(Measurement.date >= past_yr).all()
 
-# Convert list of tuples into normal list
-    minimum_dict = list(np.ravel((minimum)))
+    average = session.query(func.avg(Measurement.tobs)).\
+     filter(Measurement.date >= past_yr).all()
+   
+    min_max_ave = []
+    temp_res_dict = {}
+    temp_res_dict["Min. Temp"] = minimum
+    temp_res_dict["Max. Temp"] = maximum
+    temp_res_dict["Ave. Temp"] = average
+    min_max_ave.append(temp_res_dict)
 
-    return jsonify(minimum_dict)
-
-    maximum = session.query(func.max(measurements.tobs)).\
-    filter(measurement.date >= start_date).all()
-# Convert list of tuples into normal list
-    maximum_dict = list(np.ravel((maximum)))
-
-    return jsonify(maximum_dict)
-
-    average = session.query(func.avg(measurements.tobs)).\
-    filter(measurement.date >= start_date).all()
-# Convert list of tuples into normal list
-    maximum_dict = list(np.ravel((average)))
-
-    return jsonify(average)
+    return jsonify(min_max_ave)
 
 if __name__ == '__main__':
     app.run(debug=True)
